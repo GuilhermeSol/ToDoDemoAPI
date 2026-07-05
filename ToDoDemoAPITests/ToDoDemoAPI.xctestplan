@@ -1,0 +1,25 @@
+{
+  "configurations" : [
+    {
+      "id" : "1EC9BA83-D285-4B28-8728-2F857C7B967D",
+      "name" : "Test Scheme Action",
+      "options" : {
+
+      }
+    }
+  ],
+  "defaultOptions" : {
+    "performanceAntipatternCheckerEnabled" : true
+  },
+  "testTargets" : [
+    {
+      "parallelizable" : true,
+      "target" : {
+        "containerPath" : "container:ToDoDemoAPI.xcodeproj",
+        "identifier" : "D22ACBE82FFA6642003AED41",
+        "name" : "ToDoDemoAPITests"
+      }
+    }
+  ],
+  "version" : 1
+}

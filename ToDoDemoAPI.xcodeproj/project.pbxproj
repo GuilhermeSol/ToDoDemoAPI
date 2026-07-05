@@ -23,6 +23,7 @@
 /* Begin PBXFileReference section */
 		D22ACBDE2FFA6642003AED41 /* ToDoDemoAPI.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = ToDoDemoAPI.framework; sourceTree = BUILT_PRODUCTS_DIR; };
 		D22ACBE92FFA6642003AED41 /* ToDoDemoAPITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = ToDoDemoAPITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		D26BAFE72FFA7BDD00490E5F /* ToDoDemoAPI.xctestplan */ = {isa = PBXFileReference; lastKnownFileType = text; name = ToDoDemoAPI.xctestplan; path = ToDoDemoAPITests/ToDoDemoAPI.xctestplan; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFileSystemSynchronizedRootGroup section */
@@ -60,6 +61,7 @@
 		D22ACBD42FFA6642003AED41 = {
 			isa = PBXGroup;
 			children = (
+				D26BAFE72FFA7BDD00490E5F /* ToDoDemoAPI.xctestplan */,
 				D22ACBE02FFA6642003AED41 /* ToDoDemoAPI */,
 				D22ACBED2FFA6642003AED41 /* ToDoDemoAPITests */,
 				D22ACBDF2FFA6642003AED41 /* Products */,
