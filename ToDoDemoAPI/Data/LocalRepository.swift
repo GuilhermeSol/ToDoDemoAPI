@@ -18,17 +18,14 @@ public struct LocalRepository: TodoRepository {
     /// Callers never import SwiftData.
     public init() throws {
         let container = try ModelContainer(for: TodoItemModel.self)
-        self.init(modelContext: SwiftDataModelContext(context: ModelContext(container)))
+        self.init(modelContext: SwiftDataModelContext(modelContainer: container))
     }
 
     public func fetchAll() async throws -> [TodoItem] {
-        try modelContext.fetchAll().map { model in
-            TodoItem(
-                id: model.id,
-                title: model.title,
-                isCompleted: model.isCompleted,
-                createdAt: model.createdAt
-            )
-        }
+        try await modelContext.fetchAll()
+    }
+
+    public func save(_ item: TodoItem) async throws {
+        try await modelContext.save(item)
     }
 }

@@ -8,7 +8,7 @@ import SwiftData
 
 @Model
 final class TodoItemModel {
-    var id: UUID
+    @Attribute(.unique) var id: UUID
     var title: String
     var isCompleted: Bool
     var createdAt: Date
