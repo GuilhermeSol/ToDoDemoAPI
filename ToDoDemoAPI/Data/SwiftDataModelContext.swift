@@ -7,9 +7,9 @@
 //
 //  An actor because ModelContext is not safe to touch from multiple threads.
 //  Isolation lives here, at the one place that actually holds the unsafe
-//  resource — not on TodoRepository/TodoModelContext, which stay plain
-//  protocols so non-SwiftData conformers (e.g. the test mock) aren't forced
-//  to be actors too.
+//  resource — not on TodoFetching/TodoSaving/TodoModelContext, which stay
+//  plain protocols so non-SwiftData conformers (e.g. the test mock) aren't
+//  forced to be actors too.
 //
 //  TodoItemModel <-> TodoItem mapping happens inside this actor so only the
 //  Sendable TodoItem crosses the isolation boundary — TodoItemModel is a
@@ -21,8 +21,13 @@ import SwiftData
 
 @ModelActor
 actor SwiftDataModelContext: TodoModelContext {
-    func fetchAll() throws -> [TodoItem] {
-        try modelContext.fetch(FetchDescriptor<TodoItemModel>()).map { model in
+    func fetchAll(offset: Int, limit: Int) throws -> [TodoItem] {
+        var descriptor = FetchDescriptor<TodoItemModel>(
+            sortBy: [SortDescriptor(\.createdAt, order: .forward)]
+        )
+        descriptor.fetchOffset = offset
+        descriptor.fetchLimit = limit
+        return try modelContext.fetch(descriptor).map { model in
             TodoItem(
                 id: model.id,
                 title: model.title,

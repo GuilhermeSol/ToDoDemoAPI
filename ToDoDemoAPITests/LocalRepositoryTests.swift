@@ -12,41 +12,135 @@ struct LocalRepositoryTests {
     @Test func fetchAllOnEmptyStoreReturnsEmptyList() async throws {
         let repo = makeRepository(items: [])
 
-        let result = try await repo.fetchAll()
+        let result = try await repo.fetchAll(offset: 0, limit: 10)
 
-        #expect(result.isEmpty)
+        #expect(result.items.isEmpty)
+        #expect(result.hasMore == false)
     }
 
     @Test func fetchAllReturnsSingleItem() async throws {
         let item = makeItem(title: "Buy milk", isCompleted: true)
         let repo = makeRepository(items: [item])
 
-        let result = try await repo.fetchAll()
+        let result = try await repo.fetchAll(offset: 0, limit: 10)
 
-        #expect(result == [item])
+        #expect(result.items == [item])
     }
 
     @Test func fetchAllReturnsAllPersistedItems() async throws {
         let items = [
+            makeItem(title: "C", createdAt: Date(timeIntervalSince1970: 3)),
             makeItem(title: "A", createdAt: Date(timeIntervalSince1970: 1)),
+            makeItem(title: "E", createdAt: Date(timeIntervalSince1970: 5)),
             makeItem(title: "B", isCompleted: true, createdAt: Date(timeIntervalSince1970: 2)),
+            makeItem(title: "D", createdAt: Date(timeIntervalSince1970: 4))
+        ]
+        let repo = makeRepository(items: items)
+
+        let result = try await repo.fetchAll(offset: 0, limit: 10)
+
+        #expect(result.items.count == items.count)
+        for item in items {
+            #expect(result.items.contains(item))
+        }
+    }
+
+    @Test func fetchAllSequentialPagesConcatenateInStableOrderWithNoDuplicatesOrGaps() async throws {
+        let items = [
+            makeItem(title: "C", createdAt: Date(timeIntervalSince1970: 3)),
+            makeItem(title: "A", createdAt: Date(timeIntervalSince1970: 1)),
+            makeItem(title: "E", createdAt: Date(timeIntervalSince1970: 5)),
+            makeItem(title: "B", isCompleted: true, createdAt: Date(timeIntervalSince1970: 2)),
+            makeItem(title: "D", createdAt: Date(timeIntervalSince1970: 4))
+        ]
+        let repo = makeRepository(items: items)
+        let pageSize = 2
+
+        var fetchedPages: [TodoItem] = []
+        var offset = 0
+        var hasMore = true
+        while hasMore {
+            let page = try await repo.fetchAll(offset: offset, limit: pageSize)
+            fetchedPages.append(contentsOf: page.items)
+            hasMore = page.hasMore
+            offset += pageSize
+        }
+
+        let expectedOrder = items.sorted { $0.createdAt < $1.createdAt }
+        #expect(fetchedPages == expectedOrder)
+        #expect(Set(fetchedPages.map(\.id)).count == fetchedPages.count)
+    }
+
+    @Test func fetchAllReturnsFirstPageWithHasMoreTrue() async throws {
+        let items = [
+            makeItem(title: "D", createdAt: Date(timeIntervalSince1970: 4)),
+            makeItem(title: "A", createdAt: Date(timeIntervalSince1970: 1)),
+            makeItem(title: "E", createdAt: Date(timeIntervalSince1970: 5)),
+            makeItem(title: "B", createdAt: Date(timeIntervalSince1970: 2)),
             makeItem(title: "C", createdAt: Date(timeIntervalSince1970: 3))
         ]
         let repo = makeRepository(items: items)
 
-        let result = try await repo.fetchAll()
+        let result = try await repo.fetchAll(offset: 0, limit: 3)
 
-        #expect(result.count == items.count)
-        for item in items {
-            #expect(result.contains(item))
-        }
+        let sortedItems = items.sorted { $0.createdAt < $1.createdAt }
+        #expect(result.items == Array(sortedItems.prefix(3)))
+        #expect(result.hasMore == true)
+    }
+
+    @Test func fetchAllReturnsFinalPageWithHasMoreFalse() async throws {
+        let items = [
+            makeItem(title: "D", createdAt: Date(timeIntervalSince1970: 4)),
+            makeItem(title: "A", createdAt: Date(timeIntervalSince1970: 1)),
+            makeItem(title: "E", createdAt: Date(timeIntervalSince1970: 5)),
+            makeItem(title: "B", createdAt: Date(timeIntervalSince1970: 2)),
+            makeItem(title: "C", createdAt: Date(timeIntervalSince1970: 3))
+        ]
+        let repo = makeRepository(items: items)
+
+        let result = try await repo.fetchAll(offset: 3, limit: 3)
+
+        let sortedItems = items.sorted { $0.createdAt < $1.createdAt }
+        #expect(result.items == Array(sortedItems.suffix(2)))
+        #expect(result.hasMore == false)
+    }
+
+    @Test func fetchAllExactlyConsumingStoreReportsNoMoreOnSameCall() async throws {
+        let items = [
+            makeItem(title: "A", createdAt: Date(timeIntervalSince1970: 1)),
+            makeItem(title: "B", createdAt: Date(timeIntervalSince1970: 2)),
+            makeItem(title: "C", createdAt: Date(timeIntervalSince1970: 3))
+        ]
+        let repo = makeRepository(items: items)
+
+        let result = try await repo.fetchAll(offset: 0, limit: 3)
+
+        #expect(result.items.count == 3)
+        #expect(result.items == items)
+        #expect(result.hasMore == false)
+    }
+
+    @Test func fetchAllOffsetBeyondStoredCountReturnsEmptyPage() async throws {
+        let items = [
+            makeItem(title: "A", createdAt: Date(timeIntervalSince1970: 1)),
+            makeItem(title: "B", createdAt: Date(timeIntervalSince1970: 2)),
+            makeItem(title: "C", createdAt: Date(timeIntervalSince1970: 3)),
+            makeItem(title: "D", createdAt: Date(timeIntervalSince1970: 4)),
+            makeItem(title: "E", createdAt: Date(timeIntervalSince1970: 5))
+        ]
+        let repo = makeRepository(items: items)
+
+        let result = try await repo.fetchAll(offset: 10, limit: 3)
+
+        #expect(result.items.isEmpty)
+        #expect(result.hasMore == false)
     }
 
     @Test func fetchAllPropagatesRawReadError() async throws {
         let repo = makeRepository(fetchError: ReadFailure())
 
         await #expect(throws: ReadFailure.self) {
-            _ = try await repo.fetchAll()
+            _ = try await repo.fetchAll(offset: 0, limit: 10)
         }
     }
 
@@ -85,11 +179,11 @@ struct LocalRepositoryTests {
         for item in items {
             try await repo.save(item)
         }
-        let fetched = try await repo.fetchAll()
+        let fetched = try await repo.fetchAll(offset: 0, limit: 10)
 
-        #expect(fetched.count == items.count)
+        #expect(fetched.items.count == items.count)
         for item in items {
-            #expect(fetched.contains(item))
+            #expect(fetched.items.contains(item))
         }
     }
 
@@ -99,10 +193,10 @@ struct LocalRepositoryTests {
         let item = makeItem(title: "Buy milk", isCompleted: true, createdAt: Date(timeIntervalSince1970: 42))
 
         try await repo.save(item)
-        let fetched = try await repo.fetchAll()
+        let fetched = try await repo.fetchAll(offset: 0, limit: 10)
 
-        #expect(fetched.count == 1)
-        #expect(fetched == [item])
+        #expect(fetched.items.count == 1)
+        #expect(fetched.items == [item])
     }
 
     @Test func testFailedUpsertLeavesPreviousRecordIntact() async throws {
@@ -152,9 +246,12 @@ private final class MockTodoModelContext: TodoModelContext {
         self.fetchError = fetchError
     }
 
-    func fetchAll() async throws -> [TodoItem] {
+    func fetchAll(offset: Int, limit: Int) async throws -> [TodoItem] {
         if let fetchError { throw fetchError }
-        return items
+        let sorted = items.sorted { $0.createdAt < $1.createdAt }
+        guard offset < sorted.count else { return [] }
+        let end = min(offset + limit, sorted.count)
+        return Array(sorted[offset..<end])
     }
 
     func save(_ item: TodoItem) async throws {

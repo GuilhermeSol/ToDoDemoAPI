@@ -6,7 +6,7 @@
 import Foundation
 import SwiftData
 
-public struct LocalRepository: TodoRepository {
+public struct LocalRepository: TodoFetching, TodoSaving {
     private let modelContext: TodoModelContext
 
     /// Test seam: inject a `TodoModelContext` (e.g. a throwing mock). Internal by design.
@@ -21,8 +21,11 @@ public struct LocalRepository: TodoRepository {
         self.init(modelContext: SwiftDataModelContext(modelContainer: container))
     }
 
-    public func fetchAll() async throws -> [TodoItem] {
-        try await modelContext.fetchAll()
+    public func fetchAll(offset: Int, limit: Int) async throws -> TodoItemPage {
+        let rawItems = try await modelContext.fetchAll(offset: offset, limit: limit + 1)
+        let hasMore = rawItems.count > limit
+        let items = hasMore ? Array(rawItems.prefix(limit)) : rawItems
+        return TodoItemPage(items: items, hasMore: hasMore)
     }
 
     public func save(_ item: TodoItem) async throws {

@@ -9,6 +9,6 @@
 import Foundation
 
 protocol TodoModelContext {
-    func fetchAll() async throws -> [TodoItem]
+    func fetchAll(offset: Int, limit: Int) async throws -> [TodoItem]
     func save(_ item: TodoItem) async throws
 }
