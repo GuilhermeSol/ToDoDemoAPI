@@ -6,7 +6,7 @@
 import Foundation
 import SwiftData
 
-public struct LocalRepository: TodoFetching, TodoSaving {
+public struct LocalRepository: TodoFetching, TodoSaving, TodoDeleting {
     private let modelContext: TodoModelContext
 
     /// Test seam: inject a `TodoModelContext` (e.g. a throwing mock). Internal by design.
@@ -30,5 +30,9 @@ public struct LocalRepository: TodoFetching, TodoSaving {
 
     public func save(_ item: TodoItem) async throws {
         try await modelContext.save(item)
+    }
+
+    public func delete(id: UUID) async throws {
+        try await modelContext.delete(id: id)
     }
 }

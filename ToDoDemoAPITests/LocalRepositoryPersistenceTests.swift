@@ -98,6 +98,20 @@ struct LocalRepositoryPersistenceTests {
         #expect(everything.items == expectedChronological)
         #expect(everything.hasMore == false)
     }
+
+    @Test func testDeleteExistingItemRemovesItFromRealStore() async throws {
+        let storeURL = FileManager.default.temporaryDirectory.appending(path: "\(UUID()).store")
+        defer { try? FileManager.default.removeItem(at: storeURL) }
+
+        let repo = try makeRepository(at: storeURL)
+        let item = TodoItem(id: UUID(), title: "Delete me", isCompleted: false, createdAt: Date(timeIntervalSince1970: 0))
+        try await repo.save(item)
+
+        try await repo.delete(id: item.id)
+
+        let result = try await repo.fetchAll(offset: 0, limit: 10)
+        #expect(result.items.isEmpty)
+    }
 }
 
 private extension LocalRepositoryPersistenceTests {

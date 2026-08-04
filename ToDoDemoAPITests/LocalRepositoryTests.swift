@@ -211,6 +211,75 @@ struct LocalRepositoryTests {
         }
         #expect(mock.items == [existingItem])
     }
+
+    @Test func testDeleteOnEmptyStoreCompletesWithoutError() async throws {
+        let mock = MockTodoModelContext()
+        let repo = LocalRepository(modelContext: mock)
+
+        try await repo.delete(id: UUID())
+
+        #expect(mock.items.isEmpty)
+    }
+
+    @Test func testDeleteNonMatchingIdLeavesExistingItemIntact() async throws {
+        let item = makeItem()
+        let mock = MockTodoModelContext(items: [item])
+        let repo = LocalRepository(modelContext: mock)
+
+        try await repo.delete(id: UUID())
+
+        #expect(mock.items == [item])
+    }
+
+    @Test func testDeleteAlreadyDeletedItemIsIdempotent() async throws {
+        let item = makeItem()
+        let mock = MockTodoModelContext(items: [item])
+        let repo = LocalRepository(modelContext: mock)
+
+        try await repo.delete(id: item.id)
+        try await repo.delete(id: item.id)
+
+        #expect(mock.items.isEmpty)
+    }
+
+    @Test func testDeleteExistingItemRemovesItAndIsNoLongerFetchable() async throws {
+        let item = makeItem()
+        let mock = MockTodoModelContext(items: [item])
+        let repo = LocalRepository(modelContext: mock)
+
+        try await repo.delete(id: item.id)
+        let result = try await repo.fetchAll(offset: 0, limit: 10)
+
+        #expect(result.items.isEmpty)
+    }
+
+    @Test func testDeleteOneOfMultipleItemsRemovesOnlyThatItem() async throws {
+        let itemA = makeItem(title: "A", createdAt: Date(timeIntervalSince1970: 1))
+        let itemB = makeItem(title: "B", createdAt: Date(timeIntervalSince1970: 2))
+        let itemC = makeItem(title: "C", createdAt: Date(timeIntervalSince1970: 3))
+        let mock = MockTodoModelContext(items: [itemA, itemB, itemC])
+        let repo = LocalRepository(modelContext: mock)
+
+        try await repo.delete(id: itemB.id)
+        let result = try await repo.fetchAll(offset: 0, limit: 10)
+
+        #expect(result.items.count == 2)
+        #expect(result.items.contains(itemA))
+        #expect(result.items.contains(itemC))
+        #expect(!result.items.contains(itemB))
+    }
+
+    @Test func testDeletePropagatesRawWriteErrorAndLeavesItemIntact() async throws {
+        let item = makeItem()
+        let mock = MockTodoModelContext(items: [item])
+        mock.deleteError = WriteFailure()
+        let repo = LocalRepository(modelContext: mock)
+
+        await #expect(throws: WriteFailure.self) {
+            try await repo.delete(id: item.id)
+        }
+        #expect(mock.items == [item])
+    }
 }
 
 // MARK: - Helpers
@@ -240,6 +309,7 @@ private final class MockTodoModelContext: TodoModelContext {
     var items: [TodoItem]
     var fetchError: Error?
     var saveError: Error?
+    var deleteError: Error?
 
     init(items: [TodoItem] = [], fetchError: Error? = nil) {
         self.items = items
@@ -257,5 +327,10 @@ private final class MockTodoModelContext: TodoModelContext {
     func save(_ item: TodoItem) async throws {
         if let saveError { throw saveError }
         items.append(item)
+    }
+
+    func delete(id: UUID) async throws {
+        if let deleteError { throw deleteError }
+        items.removeAll { $0.id == id }
     }
 }

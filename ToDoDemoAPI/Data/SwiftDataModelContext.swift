@@ -47,4 +47,12 @@ actor SwiftDataModelContext: TodoModelContext {
         modelContext.insert(model)
         try modelContext.save()
     }
+
+    func delete(id: UUID) throws {
+        let descriptor = FetchDescriptor<TodoItemModel>(predicate: #Predicate { $0.id == id })
+        guard let model = try modelContext.fetch(descriptor).first
+        else { return }
+        modelContext.delete(model)
+        try modelContext.save()
+    }
 }
