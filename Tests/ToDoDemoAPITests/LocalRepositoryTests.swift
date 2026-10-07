@@ -305,7 +305,9 @@ private extension LocalRepositoryTests {
 private struct ReadFailure: Error {}
 private struct WriteFailure: Error {}
 
-private final class MockTodoModelContext: TodoModelContext {
+// @unchecked Sendable: test double only, never accessed concurrently — each test
+// creates its own instance and awaits every call sequentially within that test.
+private final class MockTodoModelContext: TodoModelContext, @unchecked Sendable {
     var items: [TodoItem]
     var fetchError: Error?
     var saveError: Error?

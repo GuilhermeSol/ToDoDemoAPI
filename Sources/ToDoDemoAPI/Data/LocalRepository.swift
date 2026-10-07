@@ -6,7 +6,7 @@
 import Foundation
 import SwiftData
 
-public struct LocalRepository: TodoFetching, TodoSaving, TodoDeleting {
+public struct LocalRepository: TodoFetching, TodoSaving, TodoDeleting, Sendable {
     private let modelContext: TodoModelContext
 
     /// Test seam: inject a `TodoModelContext` (e.g. a throwing mock). Internal by design.
