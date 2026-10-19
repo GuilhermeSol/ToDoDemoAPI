@@ -280,6 +280,18 @@ struct LocalRepositoryTests {
         }
         #expect(mock.items == [item])
     }
+
+    @Test func testTogglePropagatesRawWriteErrorAndLeavesItemIntact() async throws {
+        let item = makeItem()
+        let mock = MockTodoModelContext(items: [item])
+        mock.toggleError = WriteFailure()
+        let repo = LocalRepository(modelContext: mock)
+
+        await #expect(throws: WriteFailure.self) {
+            try await repo.toggle(id: item.id)
+        }
+        #expect(mock.items == [item])
+    }
 }
 
 // MARK: - Helpers
@@ -312,6 +324,7 @@ private final class MockTodoModelContext: TodoModelContext, @unchecked Sendable 
     var fetchError: Error?
     var saveError: Error?
     var deleteError: Error?
+    var toggleError: Error?
 
     init(items: [TodoItem] = [], fetchError: Error? = nil) {
         self.items = items
@@ -334,5 +347,9 @@ private final class MockTodoModelContext: TodoModelContext, @unchecked Sendable 
     func delete(id: UUID) async throws {
         if let deleteError { throw deleteError }
         items.removeAll { $0.id == id }
+    }
+
+    func toggle(id: UUID) async throws {
+        if let toggleError { throw toggleError }
     }
 }

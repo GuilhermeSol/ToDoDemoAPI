@@ -112,6 +112,69 @@ struct LocalRepositoryPersistenceTests {
         let result = try await repo.fetchAll(offset: 0, limit: 10)
         #expect(result.items.isEmpty)
     }
+
+    @Test func testToggleNonMatchingIdLeavesStoredItemUnchangedAndDoesNotThrow() async throws {
+        let storeURL = FileManager.default.temporaryDirectory.appending(path: "\(UUID()).store")
+        defer { try? FileManager.default.removeItem(at: storeURL) }
+
+        let repo = try makeRepository(at: storeURL)
+        let item = TodoItem(id: UUID(), title: "Keep me", isCompleted: false, createdAt: Date(timeIntervalSince1970: 7))
+        try await repo.save(item)
+
+        try await repo.toggle(id: UUID())
+
+        let result = try await repo.fetchAll(offset: 0, limit: 10)
+        #expect(result.items == [item])
+    }
+
+    @Test func testToggleFlipsIsCompletedAndKeepsTitleAndCreatedAt() async throws {
+        let storeURL = FileManager.default.temporaryDirectory.appending(path: "\(UUID()).store")
+        defer { try? FileManager.default.removeItem(at: storeURL) }
+
+        let repo = try makeRepository(at: storeURL)
+        let a = TodoItem(id: UUID(), title: "Flip me", isCompleted: false, createdAt: Date(timeIntervalSince1970: 11))
+        let b = TodoItem(id: UUID(), title: "Other", isCompleted: false, createdAt: Date(timeIntervalSince1970: 22))
+        try await repo.save(a)
+        try await repo.save(b)
+
+        try await repo.toggle(id: a.id)
+
+        let result = try await repo.fetchAll(offset: 0, limit: 10)
+        #expect(result.items == [TodoItem(id: a.id, title: "Flip me", isCompleted: true, createdAt: Date(timeIntervalSince1970: 11)), b])
+    }
+
+    @Test func testToggleTwiceRestoresOriginalCompletionState() async throws {
+        let storeURL = FileManager.default.temporaryDirectory.appending(path: "\(UUID()).store")
+        defer { try? FileManager.default.removeItem(at: storeURL) }
+
+        let repo = try makeRepository(at: storeURL)
+        let item = TodoItem(id: UUID(), title: "Twice", isCompleted: false, createdAt: Date(timeIntervalSince1970: 5))
+        try await repo.save(item)
+
+        try await repo.toggle(id: item.id)
+        try await repo.toggle(id: item.id)
+
+        let result = try await repo.fetchAll(offset: 0, limit: 10)
+        #expect(result.items == [item])
+    }
+
+    @Test func testToggledStateSurvivesAcrossContainerRecreation() async throws {
+        let storeURL = FileManager.default.temporaryDirectory.appending(path: "\(UUID()).store")
+        defer { try? FileManager.default.removeItem(at: storeURL) }
+
+        let item = TodoItem(id: UUID(), title: "Persist toggle", isCompleted: false, createdAt: Date(timeIntervalSince1970: 9))
+
+        do {
+            let firstSessionRepo = try makeRepository(at: storeURL)
+            try await firstSessionRepo.save(item)
+            try await firstSessionRepo.toggle(id: item.id)
+        }
+
+        let secondSessionRepo = try makeRepository(at: storeURL)
+        let result = try await secondSessionRepo.fetchAll(offset: 0, limit: 10)
+
+        #expect(result.items == [TodoItem(id: item.id, title: "Persist toggle", isCompleted: true, createdAt: Date(timeIntervalSince1970: 9))])
+    }
 }
 
 private extension LocalRepositoryPersistenceTests {
